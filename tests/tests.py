@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 from unittest import expectedFailure
+from django.db.models import F
 
 from django.test import TestCase
 
@@ -18,6 +19,10 @@ from .models import (
     User,
     LinkedNode,
     UserGenerator,
+    Project,
+    AssignableItem,
+    ItemUsage,
+    ItemAssignment,
 )
 
 
@@ -48,7 +53,6 @@ class RelationshipTests(TestCase):
         tbns_cache = {}
         slug_tuples = (tuple(s.split(".")) for s in slugs)
         for i, slug in enumerate(sorted(slug_tuples, key=len)):
-
             kwargs = {"name": slug[-1], "slug": ".".join(slug)}
             mptt_cache[slug] = MPTTPage.objects.create(
                 parent=mptt_cache.get(slug[:-1]), **kwargs
@@ -394,3 +398,57 @@ class RelationshipTests(TestCase):
         )
         with self.assertRaises(Product.DoesNotExist):
             item.product
+
+
+class MoreTests(TestCase):
+    def assertSeqEqual(self, seq1, seq2):
+        self.assertSequenceEqual(list(seq1), list(seq2))
+
+    @classmethod
+    def setUpTestData(cls):
+        Project.objects.bulk_create(
+            [
+                Project(pk=1, name="project-1"),
+                Project(pk=2, name="project-2"),
+            ]
+        )
+        AssignableItem.objects.bulk_create(
+            [
+                AssignableItem(pk=1, name="item-1"),
+                AssignableItem(pk=2, name="item-2"),
+            ]
+        )
+
+        ItemAssignment.objects.bulk_create(
+            [
+                ItemAssignment(item_id=1, project_id=1, assigned_from=0, assigned_until=10),
+                ItemAssignment(item_id=1, project_id=2, assigned_from=11, assigned_until=20),
+                ItemAssignment(item_id=2, project_id=1, assigned_from=0, assigned_until=20),
+            ]
+        )
+        ItemUsage.objects.bulk_create(
+            [
+                ItemUsage(item_id=1, used_at=1),
+                ItemUsage(item_id=1, used_at=10),
+                ItemUsage(item_id=1, used_at=20),
+                ItemUsage(item_id=2, used_at=1),
+                ItemUsage(item_id=2, used_at=10),
+                ItemUsage(item_id=2, used_at=20),
+            ]
+        )
+
+    def test_forward_filter(self):
+        with self.assertNumQueries(3):
+            usage = ItemUsage.objects.get(pk=1)
+            self.assertEqual(usage.used_in.name, 'project-1')
+
+    def test_assignment_select_related(self):
+        with self.assertNumQueries(1):
+            usage = ItemUsage.objects.select_related('assigned_to').get(pk=1)
+            self.assertEqual(usage.assigned_to.pk, 1)
+            # self.assertEqual(usage.proj, 'project-1')
+
+    def test_forward_select_related(self):
+        with self.assertNumQueries(1):
+            usage = ItemUsage.objects.select_related('used_in', 'assigned_to').get(pk=1)
+            self.assertEqual(usage.used_in.name, 'project-1')

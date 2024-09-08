@@ -59,13 +59,11 @@ class MPTTPage(MPTTModel, BasePage):
 
 
 class TBMPPage(MP_Node, BasePage):
-
     descendants = MP_Descendants()
     subtree = MP_Subtree()
 
 
 class TBNSPage(NS_Node, BasePage):
-
     descendants = NS_Descendants()
     subtree = NS_Subtree()
 
@@ -188,7 +186,6 @@ class SavedFilter(models.Model):
 
 
 class UserGenerator(models.Model):
-
     user = Relationship(
         User,
         Q(username=Concat(Value("generated_for_"), L("id"))),
@@ -199,3 +196,52 @@ class UserGenerator(models.Model):
     def save(self, *args, **kwargs):
         super(UserGenerator, self).save(*args, **kwargs)
         User.objects.create(username="generated_for_%d" % self.id)
+
+
+class Project(models.Model):
+    name = models.TextField()
+
+
+class AssignableItem(models.Model):
+    name = models.TextField()
+
+
+class ItemUsage(models.Model):
+    item = models.ForeignKey(
+        AssignableItem, on_delete=models.CASCADE, related_name="usages"
+    )
+    used_at = models.IntegerField()
+    assigned_to = Relationship(
+        'tests.ItemAssignment',
+        Q(
+            item_id=L("item_id"),
+            assigned_from__lte=L("used_at"),
+            assigned_until__gte=L("used_at"),
+        ),
+        multiple=False,
+        null=True,
+        reverse_multiple=True,
+        related_name='usages',
+    )
+
+    used_in = Relationship(
+        Project,
+        Q(assignments=L('assigned_to')),
+        multiple=False,
+        null=True,
+        reverse_multiple=True,
+        related_name='usages',
+    )
+
+
+class ItemAssignment(models.Model):
+    item = models.ForeignKey(
+        AssignableItem, on_delete=models.CASCADE, related_name="assignments"
+    )
+    project = models.ForeignKey(
+        Project, on_delete=models.CASCADE, related_name="assignments"
+    )
+
+    # simplified, would normally be DateTimeFields, but easier to read tests this way.
+    assigned_from = models.IntegerField()
+    assigned_until = models.IntegerField(null=True, default=None)
