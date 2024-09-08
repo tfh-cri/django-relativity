@@ -363,6 +363,10 @@ class Relationship(models.ForeignObject):
     def get_accessor_name(self):
         return self.name
 
+    @cached_property
+    def accessor_name(self):
+        return self.get_accessor_name()
+
     def _get_extra_restriction(self, related_alias, local_alias):
         return Restriction(
             forward=True,
