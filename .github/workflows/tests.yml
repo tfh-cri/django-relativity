@@ -13,6 +13,12 @@ jobs:
           - mysql://root:mysql@mysql/django_relativity
         django_version: ["4.2", "5.0", "5.1"]
         python_version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        exclude:
+          - {django_version: "4.2", python_version: "3.12"}
+          - {django_version: "5.0", python_version: "3.8"}
+          - {django_version: "5.0", python_version: "3.9"}
+          - {django_version: "5.1", python_version: "3.8"}
+          - {django_version: "5.1", python_version: "3.9"}
     runs-on: ubuntu-latest
     container: python:${{ matrix.python_version }}
     steps:

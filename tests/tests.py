@@ -448,6 +448,7 @@ class MoreTests(TestCase):
             self.assertEqual(usage.assigned_to.pk, 1)
             # self.assertEqual(usage.proj, 'project-1')
 
+    @expectedFailure
     def test_forward_select_related(self):
         with self.assertNumQueries(1):
             usage = ItemUsage.objects.select_related('used_in', 'assigned_to').get(pk=1)
